@@ -31,7 +31,7 @@ const theme = createTheme({
       default: "#F8FAFC", // Background
       paper: "#FFFFFF", // Surface / Card
     },
-    text: {
+    text: { 
       primary: "#0F172A",
       secondary: "#475569",
       disabled: "#94A3B8", // Muted
