@@ -192,7 +192,7 @@ export default function ChatPanel() {
           type="submit"
           variant="contained"
           startIcon={<SendRoundedIcon fontSize="small" />}
-          disabled={!input.trim() || isLoading}
+          disabled={!input.trim() || isLoading || isLoadingHistory}
           sx={{
             minWidth: 92,
             height: 40,

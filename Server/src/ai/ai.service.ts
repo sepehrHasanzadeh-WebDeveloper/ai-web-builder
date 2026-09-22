@@ -120,6 +120,10 @@ Return exactly this format:
         htmlCode: section.htmlCode,
       });
     }
+    const projectSections = await this.sectionsService.findAll(
+      projectId,
+      userId,
+    );
     // ذخیره پاسخ AI
     await this.messagesService.create({
       projectId,
@@ -128,7 +132,7 @@ Return exactly this format:
     });
     return {
       message: assistantReply,
-      sections: aiData.sections,
+      sections: projectSections,
     };
   }
 }

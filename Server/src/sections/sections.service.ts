@@ -13,7 +13,7 @@ export class SectionsService {
     private readonly sectionRepo: Repository<Section>,
   ) {}
 
-  // ساخت سکشن توسط AI
+  // ساخت یا به‌روزرسانی سکشن توسط AI
   async createFromAI(data: {
   projectId: string;
   name: string;
@@ -21,6 +21,20 @@ export class SectionsService {
   htmlCode: string;
   orderIndex: number;
 }): Promise<Section> {
+  const existingSection = await this.sectionRepo.findOne({
+    where: {
+      projectId: data.projectId,
+      key: data.key,
+    },
+  });
+
+  if (existingSection) {
+    existingSection.name = data.name;
+    existingSection.htmlCode = data.htmlCode;
+    existingSection.orderIndex = data.orderIndex;
+
+    return this.sectionRepo.save(existingSection);
+  }
 
   const section = this.sectionRepo.create({
     projectId: data.projectId,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Script from "next/script";
 import {
   Box,
   Button,
@@ -55,19 +56,26 @@ export default function BuilderPreview() {
   );
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        height: "100%",
-        minHeight: 0,
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: "divider",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <>
+      {/* کلاس‌های Tailwind تولیدشده توسط AI در زمان build قابل اسکن نیستند. */}
+      <Script
+        src="https://cdn.tailwindcss.com"
+        strategy="afterInteractive"
+      />
+
+      <Paper
+        elevation={0}
+        sx={{
+          height: "100%",
+          minHeight: 0,
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
 
       <Box
         sx={{
@@ -212,6 +220,7 @@ export default function BuilderPreview() {
         </Box>
       </Box>
 
-    </Paper>
+      </Paper>
+    </>
   );
 }

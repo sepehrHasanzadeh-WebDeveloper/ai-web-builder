@@ -15,6 +15,7 @@ import {
   getProjectSections,
 } from "../api/builder.api";
 import { getApiErrorMessage } from "../api/axios";
+import { createProject, getProjects } from "../api/projects.api";
 import type {
   BuilderMessage,
   GeneratedSection,
@@ -75,17 +76,70 @@ export function BuilderChatProvider({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (providedProjectId) {
-      setProjectId(providedProjectId);
-      return;
-    }
+    let isMounted = true;
 
-    const queryProjectId = new URLSearchParams(window.location.search).get(
-      "projectId",
-    );
-    const storedProjectId = window.localStorage.getItem("currentProjectId");
+    const resolveProject = async () => {
+      if (providedProjectId) {
+        if (isMounted) {
+          window.localStorage.setItem("currentProjectId", providedProjectId);
+          setProjectId(providedProjectId);
+        }
+        return;
+      }
 
-    setProjectId(queryProjectId ?? storedProjectId);
+      const queryProjectId = new URLSearchParams(window.location.search).get(
+        "projectId",
+      );
+      const storedProjectId = window.localStorage.getItem("currentProjectId");
+      const knownProjectId = queryProjectId ?? storedProjectId;
+
+      if (knownProjectId) {
+        if (isMounted) {
+          window.localStorage.setItem("currentProjectId", knownProjectId);
+          setProjectId(knownProjectId);
+        }
+        return;
+      }
+
+      setIsLoadingHistory(true);
+      setError(null);
+
+      try {
+        const projectsResponse = await getProjects();
+        let activeProject = projectsResponse.data?.[0];
+
+        if (!activeProject) {
+          const createdProjectResponse = await createProject({
+            name: "پروژه جدید",
+            description: "پروژه ساخته‌شده از Builder",
+          });
+          activeProject = createdProjectResponse.data ?? undefined;
+        }
+
+        if (!activeProject) {
+          throw new Error("پروژه‌ای برای بازکردن پیدا نشد.");
+        }
+
+        if (isMounted) {
+          window.localStorage.setItem("currentProjectId", activeProject.id);
+          setProjectId(activeProject.id);
+        }
+      } catch (requestError) {
+        if (isMounted) {
+          setError(getApiErrorMessage(requestError));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    void resolveProject();
+
+    return () => {
+      isMounted = false;
+    };
   }, [providedProjectId]);
 
   const loadHistory = useCallback(async () => {
@@ -121,7 +175,7 @@ export function BuilderChatProvider({
     async (prompt?: string) => {
       const content = (prompt ?? input).trim();
 
-      if (!content || isLoading) return;
+      if (!content || isLoading || isLoadingHistory) return;
 
       if (!projectId) {
         setError("شناسه پروژه پیدا نشد. Builder را با projectId باز کنید.");
@@ -142,8 +196,11 @@ export function BuilderChatProvider({
       try {
         const response = await generateWebsite(projectId, content);
 
-        const sections = response.data?.sections ?? [];
-        setGeneratedSections(sections);
+        // همه‌ی سکشن‌ها را دوباره می‌خوانیم تا بخش‌های قبلی در Preview باقی بمانند.
+        const sectionsResponse = await getProjectSections(projectId);
+        setGeneratedSections(
+          sectionsResponse.data ?? response.data?.sections ?? [],
+        );
 
         setMessages((currentMessages) => [
           ...currentMessages,
@@ -160,7 +217,7 @@ export function BuilderChatProvider({
         setIsLoading(false);
       }
     },
-    [input, isLoading, projectId],
+    [input, isLoading, isLoadingHistory, projectId],
   );
 
   const clearMessages = useCallback(() => {
