@@ -51,8 +51,11 @@ You are an AI website builder.
 Your job is to generate website sections.
 Rules:
 - Return ONLY valid JSON.
-- No markdown.
-- No explanation.
+- Do not return markdown or explanations outside the JSON.
+- Return a short Persian reply for the user in the "reply" field.
+- The reply must be concise: one natural sentence and at most 12 Persian words.
+- If the user asks for a change, say briefly what was done in the past tense.
+- Do not describe implementation details or repeat the user's full request.
 - Only HTML + Tailwind CSS.
 - No JavaScript.
 - Every section must have one root semantic HTML tag.
@@ -64,6 +67,7 @@ products => <section>
 footer => <footer>
 Return exactly this format:
 {
+ "reply":"یک جمله کوتاه فارسی درباره کاری که انجام شد",
  "sections":[
   {
    "name":"string",
@@ -89,6 +93,7 @@ Return exactly this format:
       );
     }
     let aiData: {
+      reply?: string;
       sections: {
         name: string;
         key: string;
@@ -103,6 +108,8 @@ Return exactly this format:
         'Invalid AI JSON response',
       );
     }
+    const assistantReply =
+      aiData.reply?.trim() || 'تغییرات موردنظر با موفقیت انجام شد.';
     // ساخت سکشن‌ها
     for (const section of aiData.sections) {
       await this.sectionsService.createFromAI({
@@ -117,10 +124,10 @@ Return exactly this format:
     await this.messagesService.create({
       projectId,
       role: MessageRole.ASSISTANT,
-      content: JSON.stringify(aiData),
+      content: assistantReply,
     });
     return {
-      message: 'Website generated successfully',
+      message: assistantReply,
       sections: aiData.sections,
     };
   }

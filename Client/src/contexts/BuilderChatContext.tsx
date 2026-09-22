@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import {
   generateWebsite,
   getProjectMessages,
+  getProjectSections,
 } from "../api/builder.api";
 import { getApiErrorMessage } from "../api/axios";
 import type {
@@ -94,12 +95,17 @@ export function BuilderChatProvider({
     setError(null);
 
     try {
-      const response = await getProjectMessages(projectId);
+      const [messagesResponse, sectionsResponse] = await Promise.all([
+        getProjectMessages(projectId),
+        getProjectSections(projectId),
+      ]);
+
       setMessages(
-        response.data && response.data.length > 0
-          ? response.data
+        messagesResponse.data && messagesResponse.data.length > 0
+          ? messagesResponse.data
           : [welcomeMessage],
       );
+      setGeneratedSections(sectionsResponse.data ?? []);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {

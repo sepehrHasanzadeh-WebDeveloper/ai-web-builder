@@ -34,6 +34,14 @@ export async function getProjectMessages(projectId: string) {
   return response.data;
 }
 
+export async function getProjectSections(projectId: string) {
+  const response = await api.get<ApiResponse<GeneratedSection[]>>(
+    `/sections/project/${projectId}`,
+  );
+
+  return response.data;
+}
+
 export async function generateWebsite(projectId: string, prompt: string) {
   const response = await api.post<ApiResponse<GenerateWebsiteResponse>>(
     "/ai/generate",

@@ -13,6 +13,7 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import LaptopMacOutlinedIcon from "@mui/icons-material/LaptopMacOutlined";
 import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
 import TabletMacOutlinedIcon from "@mui/icons-material/TabletMacOutlined";
+import { useBuilderChat } from "../contexts/BuilderChatContext";
 
 type PreviewMode = "mobile" | "tablet" | "laptop";
 
@@ -46,8 +47,12 @@ const previewWidths: Record<PreviewMode, number | string> = {
 
 export default function BuilderPreview() {
   const [activeMode, setActiveMode] = useState<PreviewMode>("laptop");
+  const { generatedSections, isLoading } = useBuilderChat();
   const activeModeLabel =
     previewModes.find((mode) => mode.value === activeMode)?.label ?? "";
+  const orderedSections = [...generatedSections].sort(
+    (first, second) => first.orderIndex - second.orderIndex,
+  );
 
   return (
     <Paper
@@ -186,8 +191,24 @@ export default function BuilderPreview() {
           }}
         >
           <Typography color="text.secondary" sx={{ textAlign: "center" }}>
-            پیش نمایش سایت در حالت {activeModeLabel}
+            {orderedSections.length === 0 && !isLoading
+              ? `پیش نمایش سایت در حالت ${activeModeLabel}`
+              : null}
           </Typography>
+
+          {isLoading && (
+            <Typography color="text.secondary" sx={{ textAlign: "center" }}>
+              در حال آماده‌سازی پیش‌نمایش...
+            </Typography>
+          )}
+
+          {orderedSections.map((section) => (
+            <Box
+              key={`${section.key}-${section.orderIndex}`}
+              sx={{ width: "100%" }}
+              dangerouslySetInnerHTML={{ __html: section.htmlCode }}
+            />
+          ))}
         </Box>
       </Box>
 
