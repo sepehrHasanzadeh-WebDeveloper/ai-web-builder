@@ -1,19 +1,39 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { Otp } from './entities/otp.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UsersModule } from '../users/users.module';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
+
+
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Otp, RefreshToken]),
     UsersModule,
-    JwtModule.register({}), // میاد تنظیمات این رو به صورت داینامیک در ConfigService  اعمال میکند
+    JwtModule.register({}),
+    PassportModule.register({
+      defaultStrategy: 'jwt',
+    }),
   ],
-  providers: [AuthService],
-  controllers: [AuthController],
-  exports: [AuthService , JwtModule], //  سرویس را اکسپورت کنید نه خود ماژول را
+
+  providers: [
+    AuthService,
+    JwtStrategy,
+  ],
+
+  controllers: [
+    AuthController,
+  ],
+
+  exports: [
+    AuthService,
+    PassportModule
+  ],
 })
 export class AuthModule {}
+ 
