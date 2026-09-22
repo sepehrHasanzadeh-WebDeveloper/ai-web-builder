@@ -1,16 +1,15 @@
-import { Geist, Vazirmatn } from "next/font/google";
+import { Noto_Sans_Arabic } from "next/font/google";
 
 import { cn } from "@/lib/utils";
 import ThemeRegistry from "../theme/ThemeRegistry"; 
 import "./globals.css";
+import Navbar from "../components/Navbar/Navbar";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
+const persianFont = Noto_Sans_Arabic({
+  subsets: ["arabic"],
   display: "swap",
-  variable: "--font-vazirmatn",
-  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-persian",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 export const metadata = {
   title: "AI Website Builder",
@@ -23,8 +22,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl" className={cn("font-sans", geist.variable)}>
-      <body className={vazirmatn.variable}>
+    <html lang="fa" dir="rtl" className={cn("font-sans", persianFont.variable)}>
+      <body>
+        <Navbar />
         <ThemeRegistry>{children}</ThemeRegistry>
       </body>
     </html>

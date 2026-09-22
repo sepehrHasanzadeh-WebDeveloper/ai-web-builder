@@ -40,7 +40,8 @@ const theme = createTheme({
   },
   typography: {
     // استفاده از متغیر فونت لود شده توسط Next.js
-    fontFamily: 'var(--font-vazirmatn), "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      'var(--font-persian), "Segoe UI", Tahoma, Arial, sans-serif',
     button: {
       textTransform: "none",
       fontWeight: 600,
@@ -53,7 +54,8 @@ const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          fontFamily: 'var(--font-vazirmatn), "Segoe UI", Roboto, sans-serif',
+          fontFamily:
+            'var(--font-persian), "Segoe UI", Tahoma, Arial, sans-serif',
           backgroundColor: "#F8FAFC",
           color: "#0F172A",
         },
