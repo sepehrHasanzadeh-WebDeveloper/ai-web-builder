@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  Alert,
   Box,
   Button,
   InputAdornment,
@@ -13,15 +15,76 @@ import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
+import { getApiErrorMessage } from "../../api/axios";
+import { sendOtp, verifyOtp } from "../../api/auth.api";
+
+function normalizeDigits(value: string) {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
 
 export default function AuthPage() {
+  const router = useRouter();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleContinue = () => {
-    if (!phone.trim()) return;
-    setStep("otp");
+  const handleContinue = async () => {
+    const normalizedPhone = normalizeDigits(phone).replace(/\s/g, "");
+
+    if (!/^09\d{9}$/.test(normalizedPhone)) {
+      setError("لطفاً یک شماره موبایل معتبر وارد کنید.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await sendOtp(normalizedPhone);
+      setPhone(normalizedPhone);
+      setOtp("");
+      setStep("otp");
+      setSuccess("کد تأیید با موفقیت ارسال شد.");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    const normalizedOtp = normalizeDigits(otp).replace(/\s/g, "");
+
+    if (normalizedOtp.length !== 4) {
+      setError("کد تأیید باید چهار رقم باشد.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await verifyOtp(phone, normalizedOtp);
+      const accessToken = response.data?.accessToken;
+
+      if (!accessToken) {
+        throw new Error("توکن دسترسی از سرور دریافت نشد.");
+      }
+
+      window.localStorage.setItem("accessToken", accessToken);
+      router.push("/builder");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -86,7 +149,7 @@ export default function AuthPage() {
               label="شماره موبایل"
               placeholder="۰۹۱۲۱۲۳۴۵۶۷"
               value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              onChange={(event) => setPhone(normalizeDigits(event.target.value))}
               type="tel"
               autoComplete="tel"
               slotProps={{
@@ -105,7 +168,7 @@ export default function AuthPage() {
               fullWidth
               variant="contained"
               onClick={handleContinue}
-              disabled={!phone.trim()}
+              disabled={!phone.trim() || isLoading}
               endIcon={<ArrowForwardRoundedIcon />}
               sx={{
                 mt: 2,
@@ -118,7 +181,7 @@ export default function AuthPage() {
                 },
               }}
             >
-              ادامه
+              {isLoading ? "در حال ارسال..." : "ادامه"}
             </Button>
           </Box>
         ) : (
@@ -129,13 +192,17 @@ export default function AuthPage() {
               placeholder="------"
               value={otp}
               onChange={(event) =>
-                setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                setOtp(
+                  normalizeDigits(event.target.value)
+                    .replace(/\D/g, "")
+                    .slice(0, 4),
+                )
               }
               autoComplete="one-time-code"
               slotProps={{
                 htmlInput: {
                   inputMode: "numeric",
-                  maxLength: 6,
+                  maxLength: 4,
                   style: {
                     direction: "ltr",
                     letterSpacing: "0.5em",
@@ -150,7 +217,8 @@ export default function AuthPage() {
             <Button
               fullWidth
               variant="contained"
-              disabled={otp.length !== 6}
+              onClick={handleVerify}
+              disabled={otp.length !== 4 || isLoading}
               sx={{
                 mt: 2,
                 height: 48,
@@ -162,19 +230,35 @@ export default function AuthPage() {
                 },
               }}
             >
-              تأیید و ورود
+              {isLoading ? "در حال بررسی..." : "تأیید و ورود"}
             </Button>
 
             <Button
               fullWidth
               color="inherit"
               startIcon={<ArrowBackRoundedIcon />}
-              onClick={() => setStep("phone")}
+              onClick={() => {
+                setError(null);
+                setSuccess(null);
+                setStep("phone");
+              }}
               sx={{ mt: 1.5, color: "text.secondary" }}
             >
               ویرایش شماره موبایل
             </Button>
           </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {success}
+          </Alert>
         )}
 
         <Typography

@@ -13,6 +13,18 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const accessToken = window.localStorage.getItem("accessToken");
+
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+  }
+
+  return config;
+});
+
 export function getApiErrorMessage(error: unknown) {
   if (axios.isAxiosError<{ message?: string }>(error)) {
     return (
