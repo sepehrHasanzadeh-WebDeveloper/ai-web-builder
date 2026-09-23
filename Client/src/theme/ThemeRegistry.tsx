@@ -13,7 +13,7 @@ export default function ThemeRegistry({
   children: React.ReactNode;
 }) {
   return (
-    <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+    <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

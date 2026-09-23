@@ -1,10 +1,21 @@
 "use client";
 
 import React from "react";
-import { Box, Container, Typography, Button, Stack, useTheme, alpha } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // برای دکمه در زبان فارسی (RTL)
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Stack,
+  useTheme,
+  alpha,
+  Divider,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import LaserFlow from "../LaserFlow";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+import BoltIcon from "@mui/icons-material/Bolt";
+import DevicesIcon from "@mui/icons-material/Devices";
 import Link from "next/link";
 
 export default function Hero() {
@@ -15,95 +26,87 @@ export default function Hero() {
       component="section"
       sx={{
         width: "100%",
-        marginBottom:"25px",
-        minHeight: { xs: "85vh", md: "90vh" },
         position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        backgroundColor: "background.default",
+        backgroundColor: "transparent",
+        pt: { xs: 6, md: 8 },
+        pb: { xs: 4, md: 6 },
       }}
     >
-      {/* Background Laser Animation */}
+      {/* هاله نوری گرادیانی بسیار ملایم در پشت متن (بدون رنگ صلب) */}
       <Box
         sx={{
           position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
+          top: "20%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: { xs: 280, md: 520 },
+          height: { xs: 280, md: 400 },
+          background: `radial-gradient(circle, ${alpha(
+            theme.palette.primary.main,
+            0.14
+          )} 0%, transparent 70%)`,
+          filter: "blur(60px)",
+          pointerEvents: "none",
           zIndex: 0,
-          pointerEvents: "none", // جلوگیری از بلاک شدن کلیک‌ها و انتخاب متن
         }}
-      >
-        <LaserFlow
-          color="#4F46E5"
-          wispDensity={1}
-          flowSpeed={0.35}
-          verticalSizing={2}
-          horizontalSizing={1}
-          fogIntensity={0.45}
-          fogScale={0.3}
-          wispSpeed={15}
-          wispIntensity={5}
-          flowStrength={0.25}
-          decay={1.1}
-          horizontalBeamOffset={0}
-          verticalBeamOffset={-0.5}
-          backgroundColor="#F8FAFC"
-          style={{ width: "100%", height: "100%" }}
-        />
-      </Box>
+      />
 
-      {/* Foreground Content Layer */}
+      {/* محتوای اصلی */}
       <Container
         maxWidth="md"
         sx={{
           position: "relative",
           zIndex: 1,
           textAlign: "center",
-          py: 8,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        {/* Badge نمونه */}
-       <Box
-  sx={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    px: 1.5,
-    py: 1.2,
-    mb: 20,
-    borderRadius: "50px",
-    bgcolor: alpha(theme.palette.primary.main, 0.08),
-    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-    color: "primary.main",
-  }}
->
-  <AutoAwesomeIcon sx={{ fontSize: 16 }} />
-  <Typography
-    variant="caption"
-    sx={{
-      fontWeight: 600,
-      fontSize: "0.82rem",
-    }}
-  >
-    نسل جدید ساخت وب‌سایت با هوش مصنوعی
-  </Typography>
-</Box>
+        {/* نشان (Badge) */}
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 1,
+            px: 1.8,
+            py: 0.6,
+            mb: 2.5,
+            borderRadius: "50px",
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            color: "primary.main",
+            boxShadow: `0 2px 10px ${alpha(theme.palette.primary.main, 0.08)}`,
+          }}
+        >
+          <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.82rem",
+              letterSpacing: "-0.2px",
+            }}
+          >
+            نسل جدید ساخت وب‌سایت با هوش مصنوعی
+          </Typography>
+        </Box>
+
         {/* عنوان اصلی */}
         <Typography
           variant="h2"
           component="h1"
           sx={{
-            fontWeight: 800,
-            fontSize: { xs: "2.2rem", sm: "3.2rem", md: "3.8rem" },
+            fontWeight: 900,
+            fontSize: { xs: "2.1rem", sm: "2.9rem", md: "3.5rem" },
             lineHeight: 1.25,
             color: "text.primary",
-            mb: 2.5,
+            mb: 2,
+            letterSpacing: "-0.5px",
           }}
         >
           ایده‌تان را در چند ثانیه به{" "}
@@ -113,6 +116,7 @@ export default function Hero() {
               background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              display: "inline-block",
             }}
           >
             سایت واقعی
@@ -125,60 +129,117 @@ export default function Hero() {
           variant="body1"
           sx={{
             color: "text.secondary",
-            fontSize: { xs: "1rem", sm: "1.15rem" },
-            maxWidth: 620,
-            mb: 4,
-            lineHeight: 1.8,
+            fontSize: { xs: "0.95rem", sm: "1.08rem" },
+            maxWidth: 580,
+            mb: 3,
+            lineHeight: 1.75,
           }}
         >
-          بدون نیاز به کدنویسی، تنها با وارد کردن توضیحات کسب‌وکارتان، هوش مصنوعی قالبی اختصاصی، ریسپانسیو و بهینه برای شما می‌سازد.
+          بدون نیاز به کدنویسی، تنها با وارد کردن توضیحات کسب‌وکارتان، هوش
+          مصنوعی قالبی اختصاصی، ریسپانسیو و بهینه برای شما می‌سازد.
         </Typography>
 
         {/* دکمه‌های اکشن */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
-          spacing={5}
-          sx={{ width: { xs: "100%", sm: "auto" , rowGap:10 } }}
+          spacing={1.5}
+          sx={{
+            width: { xs: "100%", sm: "auto" },
+            mb: 4,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
           <Button
+            component={Link}
+            href="/builder"
             variant="contained"
             color="primary"
-            size="small"
-            endIcon={<ArrowBackIcon />}
+            size="large"
+            endIcon={<ArrowBackIcon sx={{ mr: 0.5 }} />}
             sx={{
-              marginLeft:"20px",
-              px: 4,
-              py: 1.4,
-              fontSize: "1rem",
-              borderRadius: "10px",
-              boxShadow: `0 10px 25px ${alpha(theme.palette.primary.main, 0.25)}`,
+              width: { xs: "100%", sm: "auto" },
+              px: 3.5,
+              py: 1.2,
+              fontSize: "0.95rem",
+              fontWeight: 700,
+              borderRadius: "12px",
+              boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+              "&:hover": {
+                boxShadow: `0 10px 24px ${alpha(
+                  theme.palette.primary.main,
+                  0.4
+                )}`,
+              },
             }}
           >
-            <Link href={"/builder"}>
-                ساخت رایگان وب‌سایت
-            </Link>
+            ساخت رایگان وب‌سایت
           </Button>
 
           <Button
+            component={Link}
+            href="/templates"
             variant="outlined"
             size="large"
             sx={{
-              px: 3.5,
-              py: 1.4,
-              fontSize: "1rem",
-              borderRadius: "10px",
-              borderColor: "divider",
+              width: { xs: "100%", sm: "auto" },
+              px: 3,
+              py: 1.2,
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              borderRadius: "12px",
+              borderColor: alpha(theme.palette.divider, 0.9),
               color: "text.primary",
-              backgroundColor: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: "blur(8px)",
               "&:hover": {
-                borderColor: "text.secondary",
-                backgroundColor: theme.palette.background.paper,
+                borderColor: "primary.main",
+                backgroundColor: alpha(theme.palette.primary.main, 0.04),
               },
             }}
           >
             مشاهده نمونه‌کارها
           </Button>
+        </Stack>
+
+        {/* جزئیات تکمیلی و اعتمادسازی (Feature Badges / Proofs) */}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 1.5, sm: 3 }}
+          divider={
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ display: { xs: "none", sm: "block" }, height: 16, my: "auto" }}
+            />
+          }
+          sx={{
+            pt: 2,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.35)}`,
+            width: "100%",
+            maxWidth: 620,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+            <BoltIcon sx={{ fontSize: 18, color: "warning.main" }} />
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+              تحویل آنی در ۳۰ ثانیه
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+            <DevicesIcon sx={{ fontSize: 18, color: "info.main" }} />
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+              ۱۰۰٪ واکنش‌گرا و سازگار با موبایل
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+            <CheckCircleOutlineIcon sx={{ fontSize: 18, color: "success.main" }} />
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+              بدون نیاز به کارت اعتباری
+            </Typography>
+          </Box>
         </Stack>
       </Container>
     </Box>

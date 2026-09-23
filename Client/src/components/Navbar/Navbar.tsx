@@ -1,7 +1,7 @@
-
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   AppBar,
@@ -25,14 +25,21 @@ import CloseIcon from "@mui/icons-material/Close";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 const navLinks = [
-  { label: "خانه", href: "#" },
-  { label: "ویژگی‌ها", href: "#features" },
+  { label: "خانه", href: "/" },
+  { label: "سایت ساز", href: "/builder" },
   { label: "قیمت‌گذاری", href: "#pricing" },
 ];
 
 function Navbar() {
   const theme = useTheme();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  if (pathname === "/builder" || pathname.startsWith("/builder/")) {
+    return null;
+  }
+
+ 
 
   const handleDrawerToggle = () => {
     setMobileOpen((prev) => !prev);
@@ -45,11 +52,11 @@ function Navbar() {
       sx={{
         top: 20,
         mx: "auto",
-        mt:3,
+        mt: 3,
         maxWidth: "lg",
-        display:"flex",
-        justifyContent:"center",
-        alignItems:"center",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
         width: "calc(100% - 32px)",
         borderRadius: "18px",
 
@@ -70,11 +77,7 @@ function Navbar() {
         zIndex: (t) => t.zIndex.drawer + 1,
       }}
     >
-      <Container
-        maxWidth="lg"
-        disableGutters
-        sx={{ px: { xs: 2, md: 3 } }}
-      >
+      <Container maxWidth="lg" disableGutters sx={{ px: { xs: 2, md: 3 } }}>
         <Toolbar
           disableGutters
           sx={{
@@ -143,10 +146,7 @@ function Navbar() {
 
                   "&:hover": {
                     color: "primary.main",
-                    backgroundColor: alpha(
-                      theme.palette.primary.main,
-                      0.06
-                    ),
+                    backgroundColor: alpha(theme.palette.primary.main, 0.06),
                   },
                 }}
               >
@@ -182,7 +182,7 @@ function Navbar() {
                   transform: "translateY(-1px)",
                   boxShadow: `0 6px 16px ${alpha(
                     theme.palette.primary.main,
-                    0.25
+                    0.25,
                   )}`,
                 },
               }}
@@ -207,76 +207,76 @@ function Navbar() {
       </Container>
 
       {/* Mobile Drawer */}
-      <Drawer
-        anchor="right"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        ModalProps={{ keepMounted: true }}
-        slotProps={{
-          paper: {
-            sx: {
-              width: 260,
-              p: 2.5,
-              backgroundColor: theme.palette.background.paper,
-              boxShadow: `-8px 0 30px ${alpha(
-                theme.palette.common.black,
-                0.08
-              )}`,
+      
+        <Drawer
+          anchor="right"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          slotProps={{
+            paper: {
+              sx: {
+                width: 260,
+                p: 2.5,
+                backgroundColor: theme.palette.background.paper,
+                boxShadow: `-8px 0 30px ${alpha(
+                  theme.palette.common.black,
+                  0.08,
+                )}`,
+              },
             },
-          },
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            منوی دسترسی
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              منوی دسترسی
+            </Typography>
 
-          <IconButton onClick={handleDrawerToggle} size="small">
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
+            <IconButton onClick={handleDrawerToggle} size="small">
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
 
-        <List sx={{ pt: 1 }}>
-          {navLinks.map((item) => (
-            <ListItem key={item.label} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton
-                href={item.href}
-                onClick={handleDrawerToggle}
-                sx={{
-                  borderRadius: "9px",
+          <List sx={{ pt: 1 }}>
+            {navLinks.map((item) => (
+              <ListItem key={item.label} disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  href={item.href}
+                  onClick={handleDrawerToggle}
+                  sx={{
+                    borderRadius: "9px",
 
-                  "&:hover": {
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    color: "primary.main",
-                  },
-                }}
-              >
-                <ListItemText
-                  primary={item.label}
-                  slotProps={{
-                    primary: {
-                      sx: {
-                        fontSize: "0.95rem",
-                        fontWeight: 500,
-                      },
+                    "&:hover": {
+                      bgcolor: alpha(theme.palette.primary.main, 0.08),
+                      color: "primary.main",
                     },
                   }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+                >
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          fontSize: "0.95rem",
+                          fontWeight: 500,
+                        },
+                      },
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Drawer>
+    
     </AppBar>
   );
 }
 
 export default Navbar;
-

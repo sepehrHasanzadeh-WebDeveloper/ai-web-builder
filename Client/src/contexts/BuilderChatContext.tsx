@@ -7,7 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useReducer,
 } from "react";
 import { getApiErrorMessage } from "../api/axios";
 import type { BuilderMessage, GeneratedSection } from "../api/builder.api";
@@ -51,7 +51,24 @@ interface BuilderChatContextValue {
   clearMessages: () => void;
 }
 
-const BuilderChatContext = createContext<BuilderChatContextValue | null>(null);
+interface BuilderState {
+  projectId: string | null;
+  messages: ChatMessage[];
+  generatedSections: GeneratedSection[];
+  activeSection: GeneratedSection | null;
+  chatMode: BuilderChatMode;
+  input: string;
+  isLoading: boolean;
+  isProjectLoading: boolean;
+  isCreatingProject: boolean;
+  isReordering: boolean;
+  isLoadingHistory: boolean;
+  error: string | null;
+}
+
+type BuilderAction =
+  | { type: "patch"; payload: Partial<BuilderState> }
+  | { type: "append-messages"; messages: ChatMessage[] };
 
 const welcomeMessage: ChatMessage = {
   id: "welcome-message",
@@ -66,12 +83,30 @@ const addSectionMessage: ChatMessage = {
   content: "برای اضافه کردن بخش جدید، ظاهر و محتوای موردنظرت را توضیح بده.",
 };
 
-function editSectionMessage(sectionName: string): ChatMessage {
-  return {
-    id: `edit-section-${sectionName}`,
-    role: "assistant",
-    content: `بخش «${sectionName}» انتخاب شد. تغییرات موردنظرت را بنویس تا همین بخش را ویرایش کنم.`,
-  };
+const initialState: BuilderState = {
+  projectId: null,
+  messages: [welcomeMessage],
+  generatedSections: [],
+  activeSection: null,
+  chatMode: "project",
+  input: "",
+  isLoading: false,
+  isProjectLoading: true,
+  isCreatingProject: false,
+  isReordering: false,
+  isLoadingHistory: false,
+  error: null,
+};
+
+function builderReducer(
+  state: BuilderState,
+  action: BuilderAction,
+): BuilderState {
+  if (action.type === "append-messages") {
+    return { ...state, messages: [...state.messages, ...action.messages] };
+  }
+
+  return { ...state, ...action.payload };
 }
 
 function createClientId() {
@@ -82,6 +117,30 @@ function createClientId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function sectionIntro(
+  mode: BuilderChatMode,
+  section?: GeneratedSection | null,
+) {
+  if (mode === "add-section") return addSectionMessage;
+  if (mode === "edit-section" && section) {
+    return {
+      id: `edit-section-${section.name}`,
+      role: "assistant" as const,
+      content: `بخش «${section.name}» انتخاب شد. تغییرات موردنظرت را بنویس تا همین بخش را ویرایش کنم.`,
+    };
+  }
+
+  return welcomeMessage;
+}
+
+function sortSections(sections: GeneratedSection[]) {
+  return [...sections].sort(
+    (first, second) => first.orderIndex - second.orderIndex,
+  );
+}
+
+const BuilderChatContext = createContext<BuilderChatContextValue | null>(null);
+
 export function BuilderChatProvider({
   children,
   projectId: providedProjectId,
@@ -89,310 +148,314 @@ export function BuilderChatProvider({
   children: ReactNode;
   projectId?: string;
 }) {
-  const [projectId, setProjectId] = useState<string | null>(
-    providedProjectId ?? null,
-  );
-  const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage]);
-  const [generatedSections, setGeneratedSections] = useState<
-    GeneratedSection[]
-  >([]);
-  const [activeSection, setActiveSection] = useState<GeneratedSection | null>(
-    null,
-  );
-  const [chatMode, setChatMode] = useState<BuilderChatMode>("project");
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isProjectLoading, setIsProjectLoading] = useState(true);
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [isReordering, setIsReordering] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(builderReducer, {
+    ...initialState,
+    projectId: providedProjectId ?? null,
+  });
+
+  const patch = useCallback((payload: Partial<BuilderState>) => {
+    dispatch({ type: "patch", payload });
+  }, []);
+
+  const appendMessages = useCallback((messages: ChatMessage[]) => {
+    dispatch({ type: "append-messages", messages });
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const resolveProject = async () => {
-      if (providedProjectId) {
-        if (isMounted) {
-          window.localStorage.setItem("currentProjectId", providedProjectId);
-          setProjectId(providedProjectId);
-          setIsProjectLoading(false);
-        }
-        return;
-      }
-
       const queryProjectId = new URLSearchParams(window.location.search).get(
         "projectId",
       );
       const storedProjectId = window.localStorage.getItem("currentProjectId");
+      const knownProjectId = providedProjectId ?? queryProjectId;
 
-      if (queryProjectId) {
-        if (isMounted) {
-          window.localStorage.setItem("currentProjectId", queryProjectId);
-          setProjectId(queryProjectId);
-          setIsProjectLoading(false);
-        }
+      if (knownProjectId) {
+        window.localStorage.setItem("currentProjectId", knownProjectId);
+        patch({ projectId: knownProjectId, isProjectLoading: false });
         return;
       }
 
-      setError(null);
+      patch({ error: null });
 
       try {
-        const projectsResponse = await getProjects();
-        const activeProject =
-          projectsResponse.data?.find(
-            (project) => project.id === storedProjectId,
-          ) ?? projectsResponse.data?.[0];
+        const response = await getProjects();
+        const project =
+          response.data?.find((item) => item.id === storedProjectId) ??
+          response.data?.[0];
 
-        if (activeProject && isMounted) {
-          window.localStorage.setItem("currentProjectId", activeProject.id);
-          setProjectId(activeProject.id);
+        if (isMounted && project) {
+          window.localStorage.setItem("currentProjectId", project.id);
+          patch({ projectId: project.id });
         }
       } catch (requestError) {
-        if (isMounted) {
-          setError(getApiErrorMessage(requestError));
-        }
+        if (isMounted) patch({ error: getApiErrorMessage(requestError) });
       } finally {
-        if (isMounted) {
-          setIsProjectLoading(false);
-        }
+        if (isMounted) patch({ isProjectLoading: false });
       }
     };
 
     void resolveProject();
-
     return () => {
       isMounted = false;
     };
-  }, [providedProjectId]);
+  }, [patch, providedProjectId]);
 
   const loadHistory = useCallback(async () => {
-    if (!projectId) return;
+    if (!state.projectId) return;
 
-    setIsLoadingHistory(true);
-    setError(null);
+    patch({ isLoadingHistory: true, error: null });
 
     try {
       const [messagesResponse, sectionsResponse] = await Promise.all([
-        getProjectMessages(projectId),
-        getProjectSections(projectId),
+        getProjectMessages(state.projectId),
+        getProjectSections(state.projectId),
       ]);
 
-      setMessages(
-        messagesResponse.data && messagesResponse.data.length > 0
+      patch({
+        messages: messagesResponse.data?.length
           ? messagesResponse.data
           : [welcomeMessage],
-      );
-      setGeneratedSections(sectionsResponse.data ?? []);
-      setChatMode("project");
-      setActiveSection(null);
+        generatedSections: sectionsResponse.data ?? [],
+        activeSection: null,
+        chatMode: "project",
+      });
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      patch({ error: getApiErrorMessage(requestError) });
     } finally {
-      setIsLoadingHistory(false);
+      patch({ isLoadingHistory: false });
     }
-  }, [projectId]);
+  }, [patch, state.projectId]);
 
   useEffect(() => {
     void loadHistory();
   }, [loadHistory]);
 
   const createNewProject = useCallback(async () => {
-    if (isCreatingProject) return;
+    if (state.isCreatingProject) return;
 
-    setIsCreatingProject(true);
-    setError(null);
+    patch({ isCreatingProject: true, error: null });
 
     try {
       const response = await createProject({
         name: "پروژه جدید",
         description: "پروژه ساخته‌شده از Builder",
       });
-      const createdProject = response.data;
+      const project = response.data;
 
-      if (!createdProject) {
-        throw new Error("پروژه ساخته نشد.");
-      }
+      if (!project) throw new Error("پروژه ساخته نشد.");
 
-      window.localStorage.setItem("currentProjectId", createdProject.id);
-      setProjectId(createdProject.id);
-      setGeneratedSections([]);
-      setMessages([welcomeMessage]);
-      setChatMode("project");
-      setActiveSection(null);
+      window.localStorage.setItem("currentProjectId", project.id);
+      patch({
+        projectId: project.id,
+        generatedSections: [],
+        messages: [welcomeMessage],
+        activeSection: null,
+        chatMode: "project",
+      });
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      patch({ error: getApiErrorMessage(requestError) });
     } finally {
-      setIsCreatingProject(false);
+      patch({ isCreatingProject: false });
     }
-  }, [isCreatingProject]);
+  }, [patch, state.isCreatingProject]);
+
+  const resetChat = useCallback(
+    (mode: BuilderChatMode, section?: GeneratedSection | null) => {
+      patch({
+        chatMode: mode,
+        activeSection: section ?? null,
+        messages: [sectionIntro(mode, section)],
+        input: "",
+        error: null,
+      });
+    },
+    [patch],
+  );
 
   const startAddingSection = useCallback(() => {
-    if (!projectId) return;
+    if (state.projectId) resetChat("add-section");
+  }, [resetChat, state.projectId]);
 
-    setChatMode("add-section");
-    setActiveSection(null);
-    setMessages([addSectionMessage]);
-    setInput("");
-    setError(null);
-  }, [projectId]);
+  const selectSection = useCallback(
+    async (section: GeneratedSection) => {
+      resetChat("edit-section", section);
+      patch({ isLoadingHistory: true });
 
-  const selectSection = useCallback(async (section: GeneratedSection) => {
-    setChatMode("edit-section");
-    setActiveSection(section);
-    setInput("");
-    setError(null);
-    setMessages([editSectionMessage(section.name)]);
-    setIsLoadingHistory(true);
-
-    try {
-      const response = await getSectionMessages(section.id);
-      if (response.data && response.data.length > 0) {
-        setMessages(response.data);
+      try {
+        const response = await getSectionMessages(section.id);
+        if (response.data?.length) patch({ messages: response.data });
+      } catch (requestError) {
+        patch({ error: getApiErrorMessage(requestError) });
+      } finally {
+        patch({ isLoadingHistory: false });
       }
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, []);
+    },
+    [patch, resetChat],
+  );
 
   const returnToProjectChat = useCallback(() => {
-    setChatMode("project");
-    setActiveSection(null);
-    setInput("");
-    setError(null);
+    resetChat("project");
     void loadHistory();
-  }, [loadHistory]);
+  }, [loadHistory, resetChat]);
 
   const reorderSections = useCallback(
     async (sourceId: string, targetId: string) => {
-      if (sourceId === targetId || isReordering) return;
+      if (sourceId === targetId || state.isReordering) return;
 
-      const previousSections = [...generatedSections];
-      const orderedSections = [...generatedSections].sort(
-        (first, second) => first.orderIndex - second.orderIndex,
-      );
+      const previousSections = [...state.generatedSections];
+      const orderedSections = sortSections(state.generatedSections);
       const sourceIndex = orderedSections.findIndex(
-        (section) => section.id === sourceId,
+        ({ id }) => id === sourceId,
       );
       const targetIndex = orderedSections.findIndex(
-        (section) => section.id === targetId,
+        ({ id }) => id === targetId,
       );
 
       if (sourceIndex < 0 || targetIndex < 0) return;
 
       const [movedSection] = orderedSections.splice(sourceIndex, 1);
       orderedSections.splice(targetIndex, 0, movedSection);
-      const nextSections = orderedSections.map((section, index) => ({
+      const nextSections = orderedSections.map((section, orderIndex) => ({
         ...section,
-        orderIndex: index,
+        orderIndex,
       }));
 
-      setGeneratedSections(nextSections);
-      setIsReordering(true);
-      setError(null);
+      patch({
+        generatedSections: nextSections,
+        isReordering: true,
+        error: null,
+      });
 
       try {
         await Promise.all(
-          nextSections.map((section) =>
-            updateSectionOrder(section.id, section.orderIndex),
+          nextSections.map(({ id, orderIndex }) =>
+            updateSectionOrder(id, orderIndex),
           ),
         );
       } catch (requestError) {
-        setGeneratedSections(previousSections);
-        setError(getApiErrorMessage(requestError));
+        patch({
+          generatedSections: previousSections,
+          error: getApiErrorMessage(requestError),
+        });
       } finally {
-        setIsReordering(false);
+        patch({ isReordering: false });
       }
     },
-    [generatedSections, isReordering],
+    [patch, state.generatedSections, state.isReordering],
   );
 
   const deleteSection = useCallback(
     async (sectionId: string) => {
-      const previousSections = [...generatedSections];
-      const nextSections = generatedSections.filter(
-        (section) => section.id !== sectionId,
+      const previousSections = state.generatedSections;
+      const nextSections = previousSections.filter(
+        ({ id }) => id !== sectionId,
       );
-
       if (nextSections.length === previousSections.length) return;
 
-      setGeneratedSections(nextSections);
-      setError(null);
-
-      if (activeSection?.id === sectionId) {
-        setActiveSection(null);
-        setChatMode("project");
-        setMessages([welcomeMessage]);
-      }
+      const isActive = state.activeSection?.id === sectionId;
+      patch({
+        generatedSections: nextSections,
+        ...(isActive
+          ? {
+              activeSection: null,
+              chatMode: "project" as const,
+              messages: [welcomeMessage],
+            }
+          : {}),
+        error: null,
+      });
 
       try {
         await deleteSectionRequest(sectionId);
       } catch (requestError) {
-        setGeneratedSections(previousSections);
-        setError(getApiErrorMessage(requestError));
+        patch({
+          generatedSections: previousSections,
+          error: getApiErrorMessage(requestError),
+        });
       }
     },
-    [activeSection, generatedSections],
+    [patch, state.activeSection, state.generatedSections],
   );
 
   const sendMessage = useCallback(
     async (prompt?: string) => {
-      const content = (prompt ?? input).trim();
+      const content = (prompt ?? state.input).trim();
+      if (!content || state.isLoading || state.isLoadingHistory) return;
 
-      if (!content || isLoading || isLoadingHistory) return;
-
-      if (!projectId) {
-        setError("ابتدا یک پروژه بسازید.");
+      if (!state.projectId) {
+        patch({ error: "ابتدا یک پروژه بسازید." });
         return;
       }
 
-      if (chatMode === "edit-section" && !activeSection) {
-        setError("بخشی برای ویرایش انتخاب نشده است.");
+      if (state.chatMode === "edit-section" && !state.activeSection) {
+        patch({ error: "بخشی برای ویرایش انتخاب نشده است." });
         return;
       }
 
-      const userMessage: ChatMessage = {
-        id: createClientId(),
-        role: "user",
-        content,
-      };
-
-      setMessages((currentMessages) => [...currentMessages, userMessage]);
-      setInput("");
-      setError(null);
-      setIsLoading(true);
+      appendMessages([{ id: createClientId(), role: "user", content }]);
+      patch({ input: "", error: null, isLoading: true });
 
       try {
         let assistantMessage = "تغییرات با موفقیت انجام شد.";
+        let createdSection: GeneratedSection | null = null;
 
-        if (chatMode === "add-section") {
-          const response = await addSectionWithAI(projectId, content);
+        if (state.chatMode === "add-section") {
+          const response = await addSectionWithAI(state.projectId, content);
+          createdSection = response.data?.section ?? null;
           assistantMessage = response.message || "بخش جدید با موفقیت اضافه شد.";
-        } else if (chatMode === "edit-section" && activeSection) {
-          const response = await editSectionWithAI(activeSection.id, content);
+        } else if (state.chatMode === "edit-section" && state.activeSection) {
+          const response = await editSectionWithAI(
+            state.activeSection.id,
+            content,
+          );
           assistantMessage =
             response.message || "بخش انتخاب‌شده با موفقیت ویرایش شد.";
         } else {
-          const response = await generateWebsite(projectId, content);
+          const response = await generateWebsite(state.projectId, content);
           assistantMessage =
             response.message || "وب‌سایت با موفقیت توسط هوش مصنوعی ساخته شد.";
         }
 
-        const sectionsResponse = await getProjectSections(projectId);
-        const nextSections = sectionsResponse.data ?? [];
-        setGeneratedSections(nextSections);
-
-        if (activeSection) {
-          setActiveSection(
-            nextSections.find((section) => section.id === activeSection.id) ??
-              activeSection,
+        const sectionsResponse = await getProjectSections(state.projectId);
+        const generatedSections = sectionsResponse.data ?? [];
+        // بعد از ساخت سکشن، همان سکشن را به‌عنوان سکشن فعال نگه می‌داریم تا
+        // پیام بعدی به API ویرایش همان سکشن برود، نه API ساخت سکشن جدید.
+        if (!createdSection && state.chatMode === "add-section") {
+          const previousSectionIds = new Set(
+            state.generatedSections.map(({ id }) => id),
           );
+          createdSection =
+            generatedSections.find(
+              ({ id }) => !previousSectionIds.has(id),
+            ) ?? null;
         }
 
-        setMessages((currentMessages) => [
-          ...currentMessages,
+        const nextActiveSection = createdSection
+          ? (generatedSections.find(
+              ({ id }) => id === createdSection?.id,
+            ) ?? createdSection)
+          : state.activeSection
+          ? (generatedSections.find(
+              ({ id }) => id === state.activeSection?.id,
+            ) ?? state.activeSection)
+          : null;
+
+        patch({ generatedSections });
+
+        // تاریخچه‌ی همان سکشن را باز می‌کنیم تا چت بلافاصله روی سکشن تازه‌ساخته‌شده
+        // قرار بگیرد و پیام بعدی به ویرایش همان سکشن ارسال شود.
+        if (createdSection && nextActiveSection) {
+          await selectSection(nextActiveSection);
+          return;
+        }
+
+        patch({
+          activeSection: nextActiveSection,
+          chatMode: createdSection ? "edit-section" : state.chatMode,
+        });
+        appendMessages([
           {
             id: createClientId(),
             role: "assistant",
@@ -400,39 +463,26 @@ export function BuilderChatProvider({
           },
         ]);
       } catch (requestError) {
-        setError(getApiErrorMessage(requestError));
+        patch({ error: getApiErrorMessage(requestError) });
       } finally {
-        setIsLoading(false);
+        patch({ isLoading: false });
       }
     },
-    [activeSection, chatMode, input, isLoading, isLoadingHistory, projectId],
+    [appendMessages, patch, selectSection, state],
   );
 
   const clearMessages = useCallback(() => {
-    setMessages(
-      chatMode === "add-section"
-        ? [addSectionMessage]
-        : chatMode === "edit-section" && activeSection
-          ? [editSectionMessage(activeSection.name)]
-          : [welcomeMessage],
-    );
-    setError(null);
-  }, [activeSection, chatMode]);
+    patch({
+      messages: [sectionIntro(state.chatMode, state.activeSection)],
+      error: null,
+    });
+  }, [patch, state.activeSection, state.chatMode]);
+
+  const setInput = useCallback((input: string) => patch({ input }), [patch]);
 
   const contextValue = useMemo<BuilderChatContextValue>(
     () => ({
-      projectId,
-      messages,
-      generatedSections,
-      activeSection,
-      chatMode,
-      input,
-      isLoading,
-      isProjectLoading,
-      isCreatingProject,
-      isReordering,
-      isLoadingHistory,
-      error,
+      ...state,
       setInput,
       loadHistory,
       createNewProject,
@@ -445,18 +495,8 @@ export function BuilderChatProvider({
       clearMessages,
     }),
     [
-      projectId,
-      messages,
-      generatedSections,
-      activeSection,
-      chatMode,
-      input,
-      isLoading,
-      isProjectLoading,
-      isCreatingProject,
-      isReordering,
-      isLoadingHistory,
-      error,
+      state,
+      setInput,
       loadHistory,
       createNewProject,
       startAddingSection,
@@ -478,7 +518,6 @@ export function BuilderChatProvider({
 
 export function useBuilderChat() {
   const context = useContext(BuilderChatContext);
-
   if (!context) {
     throw new Error(
       "useBuilderChat باید داخل BuilderChatProvider استفاده شود.",

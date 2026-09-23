@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
   Box,
   Button,
   InputAdornment,
-  Paper,
   TextField,
   Typography,
+  Stack,
+  alpha,
+  useTheme,
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined";
 import { getApiErrorMessage } from "../../api/axios";
 import { sendOtp, verifyOtp } from "../../api/auth.api";
@@ -25,19 +27,22 @@ function normalizeDigits(value: string) {
 }
 
 export default function AuthPage() {
+  const theme = useTheme();
   const router = useRouter();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleContinue = async () => {
     const normalizedPhone = normalizeDigits(phone).replace(/\s/g, "");
 
     if (!/^09\d{9}$/.test(normalizedPhone)) {
-      setError("لطفاً یک شماره موبایل معتبر وارد کنید.");
+      setError("لطفاً یک شماره موبایل معتبر ۱۱ رقمی وارد کنید.");
       return;
     }
 
@@ -48,9 +53,10 @@ export default function AuthPage() {
     try {
       await sendOtp(normalizedPhone);
       setPhone(normalizedPhone);
-      setOtp("");
+      setOtpDigits(["", "", "", ""]);
       setStep("otp");
-      setSuccess("کد تأیید با موفقیت ارسال شد.");
+      setSuccess("کد تأیید به شماره شما ارسال شد.");
+      setTimeout(() => otpInputsRef.current[0]?.focus(), 150);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -58,11 +64,12 @@ export default function AuthPage() {
     }
   };
 
-  const handleVerify = async () => {
-    const normalizedOtp = normalizeDigits(otp).replace(/\s/g, "");
+  const handleVerify = async (codeOverride?: string) => {
+    const currentCode = codeOverride ?? otpDigits.join("");
+    const normalizedOtp = normalizeDigits(currentCode).replace(/\s/g, "");
 
     if (normalizedOtp.length !== 4) {
-      setError("کد تأیید باید چهار رقم باشد.");
+      setError("کد تأیید باید ۴ رقم باشد.");
       return;
     }
 
@@ -75,7 +82,7 @@ export default function AuthPage() {
       const accessToken = response.data?.accessToken;
 
       if (!accessToken) {
-        throw new Error("توکن دسترسی از سرور دریافت نشد.");
+        throw new Error("توکن دسترسی دریافت نشد.");
       }
 
       window.localStorage.setItem("accessToken", accessToken);
@@ -84,6 +91,48 @@ export default function AuthPage() {
       setError(getApiErrorMessage(requestError));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOtpChange = (index: number, val: string) => {
+    const cleanVal = normalizeDigits(val).replace(/\D/g, "");
+    if (!cleanVal) {
+      const nextDigits = [...otpDigits];
+      nextDigits[index] = "";
+      setOtpDigits(nextDigits);
+      return;
+    }
+
+    if (cleanVal.length > 1) {
+      const pasted = cleanVal.slice(0, 4).split("");
+      const nextDigits = [...otpDigits];
+      pasted.forEach((ch, idx) => {
+        if (idx < 4) nextDigits[idx] = ch;
+      });
+      setOtpDigits(nextDigits);
+      const nextFocus = Math.min(pasted.length, 3);
+      otpInputsRef.current[nextFocus]?.focus();
+      if (nextDigits.every((d) => d !== "")) {
+        handleVerify(nextDigits.join(""));
+      }
+      return;
+    }
+
+    const nextDigits = [...otpDigits];
+    nextDigits[index] = cleanVal.slice(-1);
+    setOtpDigits(nextDigits);
+
+    if (index < 3) {
+      otpInputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputsRef.current[index - 1]?.focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      handleVerify();
     }
   };
 
@@ -96,60 +145,80 @@ export default function AuthPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "background.default",
-        backgroundImage:
-          "radial-gradient(circle at 15% 20%, rgba(196, 181, 253, 0.24), transparent 30%), radial-gradient(circle at 85% 80%, rgba(224, 231, 255, 0.55), transparent 32%)",
+        // گرادیانت ملایم بنفش از پایین به بالا (محو شونده در مرکز صفحه)
+        background: `linear-gradient(to top, ${alpha(
+          "#8B5CF6",
+          0.12
+        )} 0%, ${alpha("#6D28D9", 0.04)} 45%, transparent 100%)`,
       }}
     >
-      <Paper
-        elevation={0}
+      <Box
         sx={{
           width: "100%",
-          maxWidth: 430,
-          p: { xs: 3, sm: 4 },
+          maxWidth: 400,
+          p: { xs: 2.5, sm: 3.5 },
+          bgcolor: "transparent",
           border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 4,
-          boxShadow: "0 18px 50px rgba(15, 23, 42, 0.08)",
+          borderColor: alpha(theme.palette.divider, 0.6),
+          borderRadius: "8px",
         }}
       >
         <Box sx={{ textAlign: "center" }}>
           <Box
             sx={{
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               mx: "auto",
               mb: 2,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: 2.5,
+              borderRadius: "6px",
               color: "primary.main",
-              bgcolor: "rgba(79, 70, 229, 0.1)",
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
             }}
           >
-            <AutoAwesomeRoundedIcon />
+            <ShieldOutlinedIcon sx={{ fontSize: 22 }} />
           </Box>
 
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-            {step === "phone" ? "ورود یا ثبت‌نام" : "تأیید شماره موبایل"}
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              fontSize: "1.15rem",
+              color: "text.primary",
+              mb: 0.8,
+            }}
+          >
+            {step === "phone" ? "ورود به حساب کاربری" : "تأیید کد امنیتی"}
           </Typography>
 
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.9 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: "0.85rem", lineHeight: 1.7 }}
+          >
             {step === "phone"
-              ? "برای ورود به سایت‌ساز، شماره موبایل خود را وارد کنید."
-              : `کد تأیید ارسال‌شده به ${phone} را وارد کنید.`}
+              ? "جهت ورود یا ثبت‌نام، شماره موبایل خود را وارد نمایید."
+              : `کد ۴ رقمی ارسال‌شده به شماره ${phone} را وارد کنید.`}
           </Typography>
         </Box>
 
         {step === "phone" ? (
-          <Box sx={{ mt: 4 }}>
+          <Box sx={{ mt: 3.5 }}>
             <TextField
               fullWidth
-              label="شماره موبایل"
+              size="small"
               placeholder="۰۹۱۲۱۲۳۴۵۶۷"
               value={phone}
-              onChange={(event) => setPhone(normalizeDigits(event.target.value))}
+              onChange={(e) => setPhone(normalizeDigits(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleContinue();
+                }
+              }}
               type="tel"
               autoComplete="tel"
               slotProps={{
@@ -157,106 +226,160 @@ export default function AuthPage() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <PhoneIphoneOutlinedIcon color="action" />
+                      <PhoneIphoneOutlinedIcon
+                        fontSize="small"
+                        sx={{ color: "text.secondary" }}
+                      />
                     </InputAdornment>
                   ),
                 },
               }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "6px",
+                  height: 44,
+                  fontSize: "0.9rem",
+                },
+              }}
             />
 
             <Button
               fullWidth
               variant="contained"
+              color="primary"
               onClick={handleContinue}
               disabled={!phone.trim() || isLoading}
-              endIcon={<ArrowForwardRoundedIcon />}
+              endIcon={<ArrowBackRoundedIcon sx={{mx:1}}/>}
               sx={{
                 mt: 2,
-                height: 48,
-                background:
-                  "linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%)",
+                height: 42,
+                
+                borderRadius: "6px",
+                fontWeight: 600,
+                fontSize: "0.88rem",
+                boxShadow: "none",
                 "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #4338CA 0%, #7C3AED 100%)",
+                  boxShadow: "none",
                 },
               }}
             >
-              {isLoading ? "در حال ارسال..." : "ادامه"}
+              {isLoading ? "در حال پردازش..." : "مرحله بعد"}
             </Button>
           </Box>
         ) : (
-          <Box sx={{ mt: 4 }}>
-            <TextField
-              fullWidth
-              label="کد تأیید"
-              placeholder="------"
-              value={otp}
-              onChange={(event) =>
-                setOtp(
-                  normalizeDigits(event.target.value)
-                    .replace(/\D/g, "")
-                    .slice(0, 4),
-                )
-              }
-              autoComplete="one-time-code"
-              slotProps={{
-                htmlInput: {
-                  inputMode: "numeric",
-                  maxLength: 4,
-                  style: {
-                    direction: "ltr",
-                    letterSpacing: "0.5em",
-                    textAlign: "center",
-                    fontWeight: 700,
-                  },
-                },
+          <Box sx={{ mt: 3.5 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              sx={{
+                direction: "ltr",
+                mb: 2.5,
+                justifyContent: "center",
               }}
-              helperText="کد ارسال‌شده را وارد کنید"
-            />
+            >
+              {[0, 1, 2, 3].map((index) => (
+                <TextField
+                  key={index}
+                  inputRef={(el) => (otpInputsRef.current[index] = el)}
+                  value={otpDigits[index]}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  type="text"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: "numeric",
+                      maxLength: 1,
+                      style: {
+                        textAlign: "center",
+                        fontSize: "1.25rem",
+                        fontWeight: 700,
+                        padding: "8px 0",
+                      },
+                    },
+                  }}
+                  sx={{
+                    width: 52,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "6px",
+                      height: 52,
+                      "&.Mui-focused fieldset": {
+                        borderWidth: "1.5px",
+                      },
+                    },
+                  }}
+                />
+              ))}
+            </Stack>
 
             <Button
               fullWidth
               variant="contained"
-              onClick={handleVerify}
-              disabled={otp.length !== 4 || isLoading}
+              color="primary"
+              onClick={() => handleVerify()}
+              disabled={otpDigits.some((d) => d === "") || isLoading}
               sx={{
-                mt: 2,
-                height: 48,
-                background:
-                  "linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%)",
+                height: 42,
+                borderRadius: "6px",
+                fontWeight: 600,
+                fontSize: "0.88rem",
+                boxShadow: "none",
                 "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #4338CA 0%, #7C3AED 100%)",
+                  boxShadow: "none",
                 },
               }}
             >
-              {isLoading ? "در حال بررسی..." : "تأیید و ورود"}
+              {isLoading ? "در حال تأیید..." : "ورود به سامانه"}
             </Button>
 
             <Button
               fullWidth
-              color="inherit"
-              startIcon={<ArrowBackRoundedIcon />}
+              variant="text"
+              startIcon={<ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />}
               onClick={() => {
                 setError(null);
                 setSuccess(null);
                 setStep("phone");
               }}
-              sx={{ mt: 1.5, color: "text.secondary" }}
+              sx={{
+                mt: 1.5,
+                height: 38,
+                borderRadius: "6px",
+                color: "text.secondary",
+                fontSize: "0.8rem",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
             >
-              ویرایش شماره موبایل
+              تغییر شماره موبایل
             </Button>
           </Box>
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <Alert
+            severity="error"
+            sx={{
+              mt: 2,
+              borderRadius: "6px",
+              fontSize: "0.8rem",
+              py: 0.5,
+            }}
+          >
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mt: 2 }}>
+          <Alert
+            severity="success"
+            sx={{
+              mt: 2,
+              borderRadius: "6px",
+              fontSize: "0.8rem",
+              py: 0.5,
+            }}
+          >
             {success}
           </Alert>
         )}
@@ -264,11 +387,17 @@ export default function AuthPage() {
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ display: "block", mt: 3, textAlign: "center", lineHeight: 1.8 }}
+          sx={{
+            display: "block",
+            mt: 3,
+            textAlign: "center",
+            fontSize: "0.75rem",
+            lineHeight: 1.6,
+          }}
         >
-          با ورود یا ثبت‌نام، قوانین استفاده از سایت را می‌پذیرید.
+          ورود شما به منزله پذیرش قوانین و مقررات سرویس است.
         </Typography>
-      </Paper>
+      </Box>
     </Box>
   );
 }

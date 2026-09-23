@@ -1,11 +1,10 @@
 "use client";
 
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import DeleteIcon from "@mui/icons-material/Delete";
+import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
   Box,
-  Button,
   CircularProgress,
   IconButton,
   Paper,
@@ -36,6 +35,14 @@ export default function ChatPanel() {
     event.preventDefault();
     void sendMessage();
   };
+
+  const canSend = Boolean(
+    input.trim() &&
+      !isLoading &&
+      !isLoadingHistory &&
+      !isProjectLoading &&
+      projectId,
+  );
 
   return (
     <Paper
@@ -85,7 +92,12 @@ export default function ChatPanel() {
           </Box>
         </Box>
         <Box
-          sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "red" }}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            color: "text.secondary",
+          }}
         >
           {chatMode !== "project" && (
             <Tooltip title="بازگشت به گفت‌وگوی پروژه">
@@ -106,7 +118,7 @@ export default function ChatPanel() {
               size="small"
               sx={{ color: "inherit" }}
             >
-              <DeleteIcon fontSize="small" />
+              <CleaningServicesOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         </Box>
@@ -214,51 +226,61 @@ export default function ChatPanel() {
           borderColor: "divider",
         }}
       >
-        <Button
-          type="submit"
-          variant="contained"
-          startIcon={
-            isLoading ? (
-              <CircularProgress size={17} thickness={5} color="inherit" />
-            ) : (
-              <SendRoundedIcon fontSize="small" />
-            )
-          }
-          aria-busy={isLoading}
-          disabled={
-            !input.trim() ||
-            isLoading ||
-            isLoadingHistory ||
-            isProjectLoading ||
-            !projectId
-          }
-          sx={{
-            minWidth: 92,
-            height: 40,
-            borderRadius: 2,
-            flexShrink: 0,
-            color: "common.white",
-            background: "linear-gradient(135deg, #C4B5FD 0%, #A78BFA 100%)",
-            boxShadow: "0 5px 14px rgba(167, 139, 250, 0.28)",
-            "&:hover": {
-              background: "linear-gradient(135deg, #B8A5FA 0%, #9276F2 100%)",
-              boxShadow: "0 7px 18px rgba(167, 139, 250, 0.34)",
-            },
-            "&.Mui-disabled": {
-              color: "rgba(255, 255, 255, 0.75)",
-              background: "#D8D0F7",
-              boxShadow: "none",
-            },
-          }}
-        >
-          {isLoading ? "در حال ارسال..." : "ارسال"}
-        </Button>
+        <Tooltip title={isLoading ? "در حال ارسال..." : "ارسال پیام"}>
+          <Box component="span" sx={{ display: "inline-flex" }}>
+            <IconButton
+              type="submit"
+              aria-label={isLoading ? "در حال ارسال پیام" : "ارسال پیام"}
+              aria-busy={isLoading}
+              disabled={!canSend}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                flexShrink: 0,
+                color: "common.white",
+                background:
+                  "linear-gradient(135deg, #C4B5FD 0%, #A78BFA 100%)",
+                boxShadow: "0 5px 14px rgba(167, 139, 250, 0.28)",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #B8A5FA 0%, #9276F2 100%)",
+                  boxShadow: "0 7px 18px rgba(167, 139, 250, 0.34)",
+                },
+                "&.Mui-disabled": {
+                  color: "rgba(255, 255, 255, 0.75)",
+                  background: "#D8D0F7",
+                  boxShadow: "none",
+                },
+              }}
+            >
+              {isLoading ? (
+                <CircularProgress size={18} thickness={5} color="inherit" />
+              ) : (
+                <SendRoundedIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Box>
+        </Tooltip>
 
         <TextField
           value={input}
           onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.ctrlKey &&
+              !event.metaKey
+            ) {
+              event.preventDefault();
+              if (canSend) void sendMessage();
+            }
+          }}
+          multiline
+          minRows={2}
+          maxRows={5}
           fullWidth
-          size="small"
           placeholder="پیام خود را بنویسید..."
           autoComplete="off"
           disabled={isLoading || isProjectLoading || !projectId}
@@ -268,18 +290,34 @@ export default function ChatPanel() {
           sx={{
             direction: "rtl",
             "& .MuiOutlinedInput-root": {
-              height: 40,
-              borderRadius: 2,
-              bgcolor: "background.default",
-              fontSize: "0.85rem",
+              borderRadius: "6px",
+              bgcolor: "background.paper",
+              fontSize: "0.9rem",
+              p: 1.5,
+              lineHeight: 1.6,
+              transition: "all 0.2s ease-in-out",
               "& fieldset": {
                 borderColor: "divider",
+                borderWidth: "1px",
               },
               "&:hover fieldset": {
-                borderColor: "primary.light",
+                borderColor: "text.secondary",
               },
               "&.Mui-focused fieldset": {
                 borderColor: "primary.main",
+                borderWidth: "1.5px",
+              },
+            },
+            "& .MuiInputBase-input": {
+              direction: "rtl",
+              textAlign: "right",
+              lineHeight: 1.6,
+              "&::-webkit-scrollbar": {
+                width: "4px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "action.hover",
+                borderRadius: "4px",
               },
             },
           }}

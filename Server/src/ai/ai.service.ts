@@ -41,9 +41,10 @@ export class AiService {
     userPrompt: string,
   ): Promise<Record<string, unknown>> {
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4.1',
       response_format: { type: 'json_object' },
       messages: [
+        
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],

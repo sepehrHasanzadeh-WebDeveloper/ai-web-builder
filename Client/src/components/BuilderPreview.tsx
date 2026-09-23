@@ -19,6 +19,7 @@ import {
   Menu,
   MenuItem,
   Paper,
+  Skeleton,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -73,6 +74,7 @@ export default function BuilderPreview() {
     isCreatingProject,
     isReordering,
     projectId,
+    activeSection,
     startAddingSection,
     createNewProject,
     selectSection,
@@ -98,7 +100,22 @@ export default function BuilderPreview() {
   return (
     <>
       {/* کلاس‌های Tailwind تولیدشده توسط AI در زمان build قابل اسکن نیستند. */}
-      <Script src="https://cdn.tailwindcss.com" strategy="afterInteractive" />
+      <Script id="tailwind-preview-runtime" strategy="afterInteractive">
+        {`
+(() => {
+  window.tailwind = window.tailwind || {};
+  window.tailwind.config = {
+    corePlugins: { preflight: false },
+    important: "#ai-preview",
+  };
+
+  const script = document.createElement("script");
+  script.src = "https://cdn.tailwindcss.com";
+  script.async = false;
+  document.head.appendChild(script);
+})();
+`}
+      </Script>
 
       <Paper
         elevation={0}
@@ -127,54 +144,85 @@ export default function BuilderPreview() {
             justifyContent: "center",
           }}
         >
-          {/* Export */}
-          <Tooltip title="خروجی گرفتن">
-            <IconButton
-              aria-label="خروجی گرفتن"
-              sx={{
-                position: "absolute",
-                left: 12,
-                color: "text.secondary",
-                borderRadius: 2,
-                "&:hover": {
-                  color: "primary.main",
-                  bgcolor: "action.hover",
-                },
-              }}
-            >
-              <FileDownloadOutlinedIcon />
-            </IconButton>
-          </Tooltip>
+        {/* Export */}
+<Tooltip title="خروجی گرفتن">
+  <IconButton
+    aria-label="خروجی گرفتن"
+    sx={{
+      position: "absolute",
+      left: 12,
+      borderRadius: "10px",
+      bgcolor: "primary.main",
+      color: "primary.contrastText",
+      boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}40`,
+      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+      "&:hover": {
+        bgcolor: "primary.dark",
+        transform: "translateY(-1px)",
+        boxShadow: (theme) => `0 6px 16px ${theme.palette.primary.main}55`,
+      },
+      "&:active": {
+        transform: "translateY(0)",
+      },
+    }}
+  >
+    <FileDownloadOutlinedIcon fontSize="small" />
+  </IconButton>
+</Tooltip>
 
-          <Typography
-            sx={{
-              position: "absolute",
-              right: 16,
-              fontWeight: 700,
-              color: "text.primary",
-            }}
-          >
-            Website Preview
-          </Typography>
+          <Box
+  sx={{
+    position: "absolute",
+    right: 16,
+    display: "flex",
+    alignItems: "center",
+    gap: 2, // فاصله منظم و استاندارد بین متن و دکمه
+  }}
+>
+  {/* عنوان فارسی با استایل رسمی */}
+  <Typography
+    variant="subtitle2"
+    sx={{
+      fontWeight: 700,
+      color: "text.primary",
+      fontSize: { xs: "0.85rem", md: "0.92rem" },
+      whiteSpace: "nowrap",
+    }}
+  >
+    پیش‌نمایش وب‌سایت
+  </Typography>
 
-          {projectId && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AddRoundedIcon fontSize="small" />}
-              onClick={startAddingSection}
-              disabled={isLoadingHistory || isLoading}
-              sx={{
-                position: "absolute",
-                right: { xs: 116, md: 136 },
-                borderRadius: 2,
-                whiteSpace: "nowrap",
-                fontSize: { xs: "0.68rem", md: "0.76rem" },
-              }}
-            >
-              اضافه کردن بخش جدید
-            </Button>
-          )}
+  {projectId && (
+    <Button
+      variant="contained"
+      color="primary"
+      size="small"
+      startIcon={<AddRoundedIcon sx={{ fontSize: 18 }} />}
+      onClick={startAddingSection}
+      disabled={isLoadingHistory || isLoading}
+      sx={{
+        px: 1.8,
+        py: 0.6,
+        borderRadius: "6px", // ظاهر اداری و رسمی‌تر
+        whiteSpace: "nowrap",
+        fontSize: { xs: "0.75rem", md: "0.8rem" },
+        fontWeight: 600,
+        boxShadow: "none",
+        border: "1px solid transparent",
+        transition: "all 0.15s ease-in-out",
+        "&:hover": {
+          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+          transform: "translateY(-1px)",
+        },
+        "&:disabled": {
+          transform: "none",
+        },
+      }}
+    >
+      افزودن بخش جدید
+    </Button>
+  )}
+</Box>
 
           {/* Responsive preview modes */}
           <Box
@@ -185,48 +233,85 @@ export default function BuilderPreview() {
               direction: "ltr",
             }}
           >
-            {previewModes.map((mode) => {
-              const Icon = mode.icon;
-              const isActive = activeMode === mode.value;
+         <Box
+  sx={{
+    display: "inline-flex",
+    alignItems: "center",
+    p: 0.5,
+    borderRadius: "10px",
+    bgcolor: "background.paper",
+    border: "1px solid",
+    borderColor: "divider",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+    gap: 0.5,
+  }}
+>
+  {previewModes.map((mode) => {
+    const Icon = mode.icon;
+    const isActive = activeMode === mode.value;
 
-              return (
-                <Tooltip key={mode.value} title={mode.label}>
-                  {isActive ? (
-                    <Button
-                      color="primary"
-                      onClick={() => setActiveMode(mode.value)}
-                      startIcon={<Icon fontSize="small" />}
-                      sx={{
-                        minWidth: 0,
-                        px: 1.25,
-                        py: 0.75,
-                        borderRadius: 2,
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {mode.label}
-                    </Button>
-                  ) : (
-                    <IconButton
-                      aria-label={mode.label}
-                      onClick={() => setActiveMode(mode.value)}
-                      sx={{
-                        color: "text.secondary",
-                        borderRadius: 2,
-                        "&:hover": {
-                          color: "primary.main",
-                          bgcolor: "action.hover",
-                        },
-                      }}
-                    >
-                      <Icon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Tooltip>
-              );
-            })}
+    return (
+      <Box
+        key={mode.value}
+        component="button"
+        type="button"
+        onClick={() => setActiveMode(mode.value)}
+        sx={{
+          border: "none",
+          outline: "none",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 44,
+          px: 1.2,
+          py: 0.8,
+          borderRadius: "8px",
+          bgcolor: isActive ? "action.selected" : "transparent",
+          color: isActive ? "primary.main" : "text.secondary",
+          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            bgcolor: isActive ? "action.selected" : "action.hover",
+            color: "primary.main",
+            "& .mode-label": {
+              maxHeight: 20,
+              opacity: 1,
+              mt: 0.4,
+            },
+          },
+        }}
+      >
+        <Icon
+          sx={{
+            fontSize: 18,
+            transition: "transform 0.2s ease",
+            transform: isActive ? "scale(1.08)" : "none",
+          }}
+        />
+
+        {/* متن زیر آیکون که در حالت فعال همیشه نمایان است و با هاور باز می‌شود */}
+        <Typography
+          variant="caption"
+          className="mode-label"
+          sx={{
+            fontSize: "0.68rem",
+            fontWeight: isActive ? 700 : 500,
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            transition: "all 0.2s ease-in-out",
+            maxHeight: isActive ? 20 : 0,
+            opacity: isActive ? 1 : 0,
+            mt: isActive ? 0.4 : 0,
+          }}
+        >
+          {mode.label}
+        </Typography>
+      </Box>
+    );
+  })}
+</Box>
           </Box>
         </Box>
 
@@ -243,6 +328,7 @@ export default function BuilderPreview() {
           }}
         >
           <Box
+            id="ai-preview"
             sx={{
               width: previewWidths[activeMode],
               maxWidth: "100%",
@@ -392,6 +478,66 @@ export default function BuilderPreview() {
                 }}
                 title={`برای ویرایش «${section.name}» کلیک کنید`}
               >
+                {isLoading && activeSection?.id === section.id && (
+                  <Box
+                    role="status"
+                    aria-label={`در حال ویرایش ${section.name}`}
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      zIndex: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      gap: 1.5,
+                      p: { xs: 2, md: 4 },
+                      bgcolor: "background.paper",
+                    }}
+                  >
+                    <Skeleton
+                      animation="wave"
+                      variant="rounded"
+                      height={72}
+                      width="48%"
+                      sx={{
+                        backgroundColor: "#94A3B8 !important",
+                        border: "1px solid #64748B",
+                      }}
+                    />
+                    <Skeleton
+                      animation="wave"
+                      variant="rounded"
+                      height={34}
+                      width="86%"
+                      sx={{
+                        backgroundColor: "#94A3B8 !important",
+                        border: "1px solid #64748B",
+                      }}
+                    />
+                    <Skeleton
+                      animation="wave"
+                      variant="rounded"
+                      height={34}
+                      width="72%"
+                      sx={{
+                        backgroundColor: "#94A3B8 !important",
+                        border: "1px solid #64748B",
+                      }}
+                    />
+                    <Skeleton
+                      animation="wave"
+                      variant="rounded"
+                      height={58}
+                      width="34%"
+                      sx={{
+                        mt: 1,
+                        backgroundColor: "#94A3B8 !important",
+                        border: "1px solid #64748B",
+                      }}
+                    />
+                  </Box>
+                )}
+
                 <Tooltip title="برای جابه‌جایی بکشید">
                   <Box
                     className="section-drag-handle"
@@ -440,7 +586,7 @@ export default function BuilderPreview() {
           </Box>
         </Box>
 
-        {isLoading && (
+        {isLoading && !activeSection && (
           <Box
             role="status"
             aria-live="polite"
