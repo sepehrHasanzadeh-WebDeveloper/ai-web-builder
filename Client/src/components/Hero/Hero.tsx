@@ -5,6 +5,7 @@ import { Box, Container, Typography, Button, Stack, useTheme, alpha } from "@mui
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // برای دکمه در زبان فارسی (RTL)
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LaserFlow from "../LaserFlow";
+import Link from "next/link";
 
 export default function Hero() {
   const theme = useTheme();
@@ -153,7 +154,9 @@ export default function Hero() {
               boxShadow: `0 10px 25px ${alpha(theme.palette.primary.main, 0.25)}`,
             }}
           >
-            ساخت رایگان وب‌سایت
+            <Link href={"/builder"}>
+                ساخت رایگان وب‌سایت
+            </Link>
           </Button>
 
           <Button

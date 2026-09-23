@@ -1,16 +1,18 @@
 "use client";
 
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import DeleteIcon from "@mui/icons-material/Delete";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
   Box,
   Button,
+  CircularProgress,
   IconButton,
   Paper,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { useBuilderChat } from "../contexts/BuilderChatContext";
 
 export default function ChatPanel() {
@@ -18,11 +20,16 @@ export default function ChatPanel() {
     messages,
     input,
     isLoading,
+    isProjectLoading,
     isLoadingHistory,
+    projectId,
+    chatMode,
+    activeSection,
     error,
     setInput,
     sendMessage,
     clearMessages,
+    returnToProjectChat,
   } = useBuilderChat();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -46,37 +53,52 @@ export default function ChatPanel() {
         top: 0,
       }}
     >
-
       {/* Header */}
       <Box
         sx={{
-            display:"flex",
-            justifyContent:"space-between",
+          display: "flex",
+          justifyContent: "space-between",
           p: 2,
           borderBottom: "1px solid",
           borderColor: "divider",
         }}
       >
         <Box>
-             <Typography sx={{fontWeight:"700"}}>
-          دستیار انلاین هوشمند 
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-  <Box
-    sx={{
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      bgcolor: "success.main",
-    }}
-  />
+          <Typography sx={{ fontWeight: "700" }}>
+            {chatMode === "add-section"
+              ? "افزودن بخش جدید"
+              : chatMode === "edit-section"
+                ? `ویرایش ${activeSection?.name ?? "بخش"}`
+                : "دستیار آنلاین هوشمند"}
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: "success.main",
+              }}
+            />
 
-  <Typography variant="body2">
-    انلاین
-  </Typography>
-</Box>
+            <Typography variant="body2">انلاین</Typography>
+          </Box>
         </Box>
-        <Box sx={{ color: "red" }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "red" }}
+        >
+          {chatMode !== "project" && (
+            <Tooltip title="بازگشت به گفت‌وگوی پروژه">
+              <IconButton
+                aria-label="بازگشت به گفت‌وگوی پروژه"
+                onClick={returnToProjectChat}
+                size="small"
+                sx={{ color: "text.secondary" }}
+              >
+                <ArrowForwardRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="حذف پیام ها">
             <IconButton
               aria-label="حذف پیام ها"
@@ -89,7 +111,6 @@ export default function ChatPanel() {
           </Tooltip>
         </Box>
       </Box>
-
 
       {/* Messages */}
       <Box
@@ -105,6 +126,12 @@ export default function ChatPanel() {
         {isLoadingHistory && (
           <Typography color="text.secondary" variant="body2">
             در حال دریافت تاریخچه گفتگو...
+          </Typography>
+        )}
+
+        {!isProjectLoading && !projectId && !isLoadingHistory && (
+          <Typography color="text.secondary" variant="body2">
+            برای شروع، ابتدا از پنل پیش‌نمایش یک پروژه بسازید.
           </Typography>
         )}
 
@@ -140,16 +167,16 @@ export default function ChatPanel() {
                 px: 1.5,
                 py: 1.1,
                 borderRadius:
-                  item.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                bgcolor:
-                  item.role === "user" ? "primary.main" : "action.hover",
+                  item.role === "user"
+                    ? "16px 16px 4px 16px"
+                    : "16px 16px 16px 4px",
+                bgcolor: item.role === "user" ? "primary.main" : "action.hover",
                 color:
                   item.role === "user"
                     ? "primary.contrastText"
                     : "text.primary",
                 border: "1px solid",
-                borderColor:
-                  item.role === "user" ? "primary.main" : "divider",
+                borderColor: item.role === "user" ? "primary.main" : "divider",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
                 lineHeight: 1.8,
@@ -173,7 +200,6 @@ export default function ChatPanel() {
         )}
       </Box>
 
-
       {/* Input */}
       <Box
         component="form"
@@ -191,20 +217,31 @@ export default function ChatPanel() {
         <Button
           type="submit"
           variant="contained"
-          startIcon={<SendRoundedIcon fontSize="small" />}
-          disabled={!input.trim() || isLoading || isLoadingHistory}
+          startIcon={
+            isLoading ? (
+              <CircularProgress size={17} thickness={5} color="inherit" />
+            ) : (
+              <SendRoundedIcon fontSize="small" />
+            )
+          }
+          aria-busy={isLoading}
+          disabled={
+            !input.trim() ||
+            isLoading ||
+            isLoadingHistory ||
+            isProjectLoading ||
+            !projectId
+          }
           sx={{
             minWidth: 92,
             height: 40,
             borderRadius: 2,
             flexShrink: 0,
             color: "common.white",
-            background:
-              "linear-gradient(135deg, #C4B5FD 0%, #A78BFA 100%)",
+            background: "linear-gradient(135deg, #C4B5FD 0%, #A78BFA 100%)",
             boxShadow: "0 5px 14px rgba(167, 139, 250, 0.28)",
             "&:hover": {
-              background:
-                "linear-gradient(135deg, #B8A5FA 0%, #9276F2 100%)",
+              background: "linear-gradient(135deg, #B8A5FA 0%, #9276F2 100%)",
               boxShadow: "0 7px 18px rgba(167, 139, 250, 0.34)",
             },
             "&.Mui-disabled": {
@@ -214,7 +251,7 @@ export default function ChatPanel() {
             },
           }}
         >
-          ارسال
+          {isLoading ? "در حال ارسال..." : "ارسال"}
         </Button>
 
         <TextField
@@ -224,7 +261,7 @@ export default function ChatPanel() {
           size="small"
           placeholder="پیام خود را بنویسید..."
           autoComplete="off"
-          disabled={isLoading}
+          disabled={isLoading || isProjectLoading || !projectId}
           slotProps={{
             htmlInput: { "aria-label": "متن پیام" },
           }}
@@ -247,9 +284,7 @@ export default function ChatPanel() {
             },
           }}
         />
-
       </Box>
-
     </Paper>
   );
 }

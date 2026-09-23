@@ -40,12 +40,16 @@ function Navbar() {
 
   return (
     <AppBar
-      position="sticky"
+      position="static"
       elevation={0}
       sx={{
-        top: 16,
+        top: 20,
         mx: "auto",
+        mt:3,
         maxWidth: "lg",
+        display:"flex",
+        justifyContent:"center",
+        alignItems:"center",
         width: "calc(100% - 32px)",
         borderRadius: "18px",
 

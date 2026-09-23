@@ -1,22 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import Script from "next/script";
-import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import LaptopMacOutlinedIcon from "@mui/icons-material/LaptopMacOutlined";
 import SmartphoneOutlinedIcon from "@mui/icons-material/SmartphoneOutlined";
 import TabletMacOutlinedIcon from "@mui/icons-material/TabletMacOutlined";
+import {
+  Box,
+  Button,
+  IconButton,
+  LinearProgress,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import Script from "next/script";
+import { useRef, useState } from "react";
+import type { GeneratedSection } from "../api/builder.api";
 import { useBuilderChat } from "../contexts/BuilderChatContext";
 
 type PreviewMode = "mobile" | "tablet" | "laptop";
+
+type SectionContextMenu = {
+  section: GeneratedSection;
+  x: number;
+  y: number;
+};
 
 const previewModes: Array<{
   value: PreviewMode;
@@ -48,7 +65,30 @@ const previewWidths: Record<PreviewMode, number | string> = {
 
 export default function BuilderPreview() {
   const [activeMode, setActiveMode] = useState<PreviewMode>("laptop");
-  const { generatedSections, isLoading } = useBuilderChat();
+  const {
+    generatedSections,
+    isLoading,
+    isLoadingHistory,
+    isProjectLoading,
+    isCreatingProject,
+    isReordering,
+    projectId,
+    startAddingSection,
+    createNewProject,
+    selectSection,
+    reorderSections,
+    deleteSection,
+  } = useBuilderChat();
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(
+    null,
+  );
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(
+    null,
+  );
+  const didDragRef = useRef(false);
+  const draggingSectionIdRef = useRef<string | null>(null);
+  const [sectionContextMenu, setSectionContextMenu] =
+    useState<SectionContextMenu | null>(null);
   const activeModeLabel =
     previewModes.find((mode) => mode.value === activeMode)?.label ?? "";
   const orderedSections = [...generatedSections].sort(
@@ -58,10 +98,7 @@ export default function BuilderPreview() {
   return (
     <>
       {/* کلاس‌های Tailwind تولیدشده توسط AI در زمان build قابل اسکن نیستند. */}
-      <Script
-        src="https://cdn.tailwindcss.com"
-        strategy="afterInteractive"
-      />
+      <Script src="https://cdn.tailwindcss.com" strategy="afterInteractive" />
 
       <Paper
         elevation={0}
@@ -74,152 +111,429 @@ export default function BuilderPreview() {
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-        }}
-      >
-
-      <Box
-        sx={{
           position: "relative",
-          minHeight: 68,
-          px: 2,
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          isolation: "isolate",
         }}
       >
-        {/* Export */}
-        <Tooltip title="خروجی گرفتن">
-          <IconButton
-            aria-label="خروجی گرفتن"
-            sx={{
-              position: "absolute",
-              left: 12,
-              color: "text.secondary",
-              borderRadius: 2,
-              "&:hover": {
-                color: "primary.main",
-                bgcolor: "action.hover",
-              },
-            }}
-          >
-            <FileDownloadOutlinedIcon />
-          </IconButton>
-        </Tooltip>
-
-        <Typography
-          sx={{
-            position: "absolute",
-            right: 16,
-            fontWeight: 700,
-            color: "text.primary",
-          }}
-        >
-          Website Preview
-        </Typography>
-
-        {/* Responsive preview modes */}
         <Box
           sx={{
+            position: "relative",
+            minHeight: 68,
+            px: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
             display: "flex",
             alignItems: "center",
-            gap: 0.5,
-            direction: "ltr",
+            justifyContent: "center",
           }}
         >
-          {previewModes.map((mode) => {
-            const Icon = mode.icon;
-            const isActive = activeMode === mode.value;
+          {/* Export */}
+          <Tooltip title="خروجی گرفتن">
+            <IconButton
+              aria-label="خروجی گرفتن"
+              sx={{
+                position: "absolute",
+                left: 12,
+                color: "text.secondary",
+                borderRadius: 2,
+                "&:hover": {
+                  color: "primary.main",
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              <FileDownloadOutlinedIcon />
+            </IconButton>
+          </Tooltip>
 
-            return (
-              <Tooltip key={mode.value} title={mode.label}>
-                {isActive ? (
-                  <Button
-                    color="primary"
-                    onClick={() => setActiveMode(mode.value)}
-                    startIcon={<Icon fontSize="small" />}
-                    sx={{
-                      minWidth: 0,
-                      px: 1.25,
-                      py: 0.75,
-                      borderRadius: 2,
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {mode.label}
-                  </Button>
-                ) : (
-                  <IconButton
-                    aria-label={mode.label}
-                    onClick={() => setActiveMode(mode.value)}
-                    sx={{
-                      color: "text.secondary",
-                      borderRadius: 2,
-                      "&:hover": {
-                        color: "primary.main",
-                        bgcolor: "action.hover",
-                      },
-                    }}
-                  >
-                    <Icon fontSize="small" />
-                  </IconButton>
-                )}
-              </Tooltip>
-            );
-          })}
-        </Box>
-      </Box>
-
-
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          bgcolor: "grey.100",
-          p: 2,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          overflowY: "auto",
-        }}
-      >
-        <Box
-          sx={{
-            width: previewWidths[activeMode],
-            maxWidth: "100%",
-            minHeight: "100%",
-            bgcolor: "background.paper",
-            borderRadius: 2,
-            boxShadow: 1,
-            p: 3,
-            transition: "width 0.2s ease",
-          }}
-        >
-          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
-            {orderedSections.length === 0 && !isLoading
-              ? `پیش نمایش سایت در حالت ${activeModeLabel}`
-              : null}
+          <Typography
+            sx={{
+              position: "absolute",
+              right: 16,
+              fontWeight: 700,
+              color: "text.primary",
+            }}
+          >
+            Website Preview
           </Typography>
 
-          {isLoading && (
-            <Typography color="text.secondary" sx={{ textAlign: "center" }}>
-              در حال آماده‌سازی پیش‌نمایش...
-            </Typography>
+          {projectId && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AddRoundedIcon fontSize="small" />}
+              onClick={startAddingSection}
+              disabled={isLoadingHistory || isLoading}
+              sx={{
+                position: "absolute",
+                right: { xs: 116, md: 136 },
+                borderRadius: 2,
+                whiteSpace: "nowrap",
+                fontSize: { xs: "0.68rem", md: "0.76rem" },
+              }}
+            >
+              اضافه کردن بخش جدید
+            </Button>
           )}
 
-          {orderedSections.map((section) => (
-            <Box
-              key={`${section.key}-${section.orderIndex}`}
-              sx={{ width: "100%" }}
-              dangerouslySetInnerHTML={{ __html: section.htmlCode }}
-            />
-          ))}
-        </Box>
-      </Box>
+          {/* Responsive preview modes */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              direction: "ltr",
+            }}
+          >
+            {previewModes.map((mode) => {
+              const Icon = mode.icon;
+              const isActive = activeMode === mode.value;
 
+              return (
+                <Tooltip key={mode.value} title={mode.label}>
+                  {isActive ? (
+                    <Button
+                      color="primary"
+                      onClick={() => setActiveMode(mode.value)}
+                      startIcon={<Icon fontSize="small" />}
+                      sx={{
+                        minWidth: 0,
+                        px: 1.25,
+                        py: 0.75,
+                        borderRadius: 2,
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {mode.label}
+                    </Button>
+                  ) : (
+                    <IconButton
+                      aria-label={mode.label}
+                      onClick={() => setActiveMode(mode.value)}
+                      sx={{
+                        color: "text.secondary",
+                        borderRadius: 2,
+                        "&:hover": {
+                          color: "primary.main",
+                          bgcolor: "action.hover",
+                        },
+                      }}
+                    >
+                      <Icon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Tooltip>
+              );
+            })}
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            bgcolor: "grey.100",
+            p: 2,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            overflowY: "auto",
+          }}
+        >
+          <Box
+            sx={{
+              width: previewWidths[activeMode],
+              maxWidth: "100%",
+              minHeight: "100%",
+              bgcolor: "background.paper",
+              borderRadius: 2,
+              boxShadow: 1,
+              p: 3,
+              transition: "width 0.2s ease",
+            }}
+          >
+            {!isProjectLoading && !projectId && (
+              <Box
+                sx={{
+                  minHeight: "60vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  gap: 1.5,
+                  px: 2,
+                }}
+              >
+                <AutoAwesomeRoundedIcon
+                  sx={{ fontSize: 42, color: "primary.main", opacity: 0.8 }}
+                />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  هنوز پروژه‌ای ندارید
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  برای شروع ساخت سایت، یک پروژه جدید بسازید.
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => void createNewProject()}
+                  disabled={isCreatingProject}
+                  sx={{ mt: 1, borderRadius: 2, px: 3 }}
+                >
+                  {isCreatingProject ? "در حال ساخت پروژه..." : "ساخت پروژه"}
+                </Button>
+              </Box>
+            )}
+
+            {projectId && orderedSections.length === 0 && !isLoading && (
+              <Typography color="text.secondary" sx={{ textAlign: "center" }}>
+                پیش‌نمایش سایت در حالت {activeModeLabel}
+              </Typography>
+            )}
+
+            {orderedSections.map((section) => (
+              <Box
+                key={`${section.key}-${section.orderIndex}`}
+                component="section"
+                role="button"
+                tabIndex={0}
+                draggable={!isLoading && !isReordering}
+                aria-label={`ویرایش ${section.name}. برای جابه‌جایی بکشید`}
+                onClick={() => {
+                  if (didDragRef.current) {
+                    didDragRef.current = false;
+                    return;
+                  }
+
+                  void selectSection(section);
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setSectionContextMenu({
+                    section,
+                    x: event.clientX,
+                    y: event.clientY,
+                  });
+                }}
+                onDragStart={(event) => {
+                  didDragRef.current = false;
+                  draggingSectionIdRef.current = section.id;
+                  setDraggingSectionId(section.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", section.id);
+                }}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  if (draggingSectionIdRef.current !== section.id) {
+                    setDragOverSectionId(section.id);
+                  }
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (draggingSectionId !== section.id) {
+                    setDragOverSectionId(section.id);
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const sourceId =
+                    event.dataTransfer.getData("text/plain") ||
+                    draggingSectionIdRef.current;
+
+                  if (sourceId && sourceId !== section.id) {
+                    didDragRef.current = true;
+                    void reorderSections(sourceId, section.id);
+                  }
+
+                  setDraggingSectionId(null);
+                  setDragOverSectionId(null);
+                  draggingSectionIdRef.current = null;
+                }}
+                onDragEnd={() => {
+                  setDraggingSectionId(null);
+                  setDragOverSectionId(null);
+                  draggingSectionIdRef.current = null;
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    void selectSection(section);
+                  }
+                }}
+                sx={{
+                  width: "100%",
+                  position: "relative",
+                  cursor: isReordering ? "wait" : "grab",
+                  borderRadius: 1.5,
+                  isolation: "isolate",
+                  opacity: draggingSectionId === section.id ? 0.45 : 1,
+                  border: "1px solid transparent",
+                  borderColor:
+                    dragOverSectionId === section.id
+                      ? "primary.main"
+                      : "transparent",
+                  outline: "2px solid transparent",
+                  outlineOffset: 3,
+                  transition:
+                    "outline-color 160ms ease, background-color 160ms ease",
+                  "&:hover": {
+                    outlineColor: "rgba(99, 102, 241, 0.3)",
+                    bgcolor: "rgba(99, 102, 241, 0.035)",
+                  },
+                  "&:active": {
+                    cursor: "grabbing",
+                  },
+                  "&:focus-visible": {
+                    outlineColor: "primary.main",
+                  },
+                }}
+                title={`برای ویرایش «${section.name}» کلیک کنید`}
+              >
+                <Tooltip title="برای جابه‌جایی بکشید">
+                  <Box
+                    className="section-drag-handle"
+                    draggable={!isLoading && !isReordering}
+                    aria-label={`جابه‌جایی ${section.name}`}
+                    onClick={(event) => event.stopPropagation()}
+                    onDragStart={(event) => {
+                      event.stopPropagation();
+                      didDragRef.current = false;
+                      draggingSectionIdRef.current = section.id;
+                      setDraggingSectionId(section.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", section.id);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      zIndex: 9999,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 28,
+                      height: 28,
+                      borderRadius: 1.5,
+                      color: "text.secondary",
+                      bgcolor: "rgba(255, 255, 255, 0.88)",
+                      boxShadow: 1,
+                      cursor: isReordering ? "wait" : "grab",
+                      transition: "opacity 160ms ease, color 160ms ease",
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                      "&:active": {
+                        cursor: "grabbing",
+                      },
+                      opacity: isReordering ? 0.45 : 0.7,
+                    }}
+                  >
+                    <DragIndicatorRoundedIcon fontSize="small" />
+                  </Box>
+                </Tooltip>
+                <Box dangerouslySetInnerHTML={{ __html: section.htmlCode }} />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        {isLoading && (
+          <Box
+            role="status"
+            aria-live="polite"
+            sx={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 99999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              px: 3,
+              bgcolor: "rgba(15, 23, 42, 0.58)",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <Box sx={{ width: "min(360px, 80%)", textAlign: "center" }}>
+              <Typography
+                sx={{
+                  mb: 1.5,
+                  color: "common.white",
+                  fontWeight: 700,
+                }}
+              >
+                هوش مصنوعی در حال ساخت است...
+              </Typography>
+              <LinearProgress
+                sx={{
+                  height: 6,
+                  borderRadius: 999,
+                  bgcolor: "rgba(255, 255, 255, 0.24)",
+                  "& .MuiLinearProgress-bar": {
+                    borderRadius: 999,
+                  },
+                }}
+              />
+            </Box>
+          </Box>
+        )}
+
+        <Menu
+          open={Boolean(sectionContextMenu)}
+          onClose={() => setSectionContextMenu(null)}
+          anchorReference="anchorPosition"
+          anchorPosition={
+            sectionContextMenu
+              ? { top: sectionContextMenu.y, left: sectionContextMenu.x }
+              : undefined
+          }
+          slotProps={{
+            paper: {
+              sx: {
+                minWidth: 190,
+                borderRadius: 2,
+                direction: "rtl",
+              },
+            },
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              if (!sectionContextMenu) return;
+              const selectedSection = sectionContextMenu.section;
+              setSectionContextMenu(null);
+              void selectSection(selectedSection);
+            }}
+          >
+            <ListItemIcon>
+              <EditOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>ویرایش سکشن</ListItemText>
+          </MenuItem>
+          <MenuItem
+            sx={{ color: "error.main" }}
+            onClick={() => {
+              if (!sectionContextMenu) return;
+              const selectedSection = sectionContextMenu.section;
+              setSectionContextMenu(null);
+
+              if (
+                window.confirm(
+                  `آیا از حذف سکشن «${selectedSection.name}» مطمئن هستید؟`,
+                )
+              ) {
+                void deleteSection(selectedSection.id);
+              }
+            }}
+          >
+            <ListItemIcon sx={{ color: "inherit" }}>
+              <DeleteOutlineRoundedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>حذف سکشن</ListItemText>
+          </MenuItem>
+        </Menu>
       </Paper>
     </>
   );
